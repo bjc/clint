@@ -1,0 +1,17 @@
+[package]
+name = "clint"
+version = "0.1.0"
+description = "CLosure INTerrupt handlers."
+categories = ["no-std", "embedded", "hardware-support", "asynchronous"]
+keywords = ["interrupt", "peripheral"]
+license = "LGPL-3.0-or-later"
+authors = ["Brian Cully <bjc@kublai.com>"]
+repository = "https://github.com/bjc/clint"
+edition = "2018"
+
+[dev-dependencies]
+cortex-m = "~0.6"
+compiletest_rs = "~0.3"
+
+[dev-dependencies.cortex-m-rt]
+version = "~0.6"
