@@ -13,8 +13,7 @@ fn main() {
 fn need_move() {
     let x = vec![1, 2, 3];
     let c = || {
-        //~^ ERROR closure may outlive
-        println!("x(h-c): {:?}", x);
+        println!("x(h-c): {:?}", x); //~ ERROR does not live long enough
     };
     unsafe {
         HANDLER.replace(&c);

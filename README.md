@@ -3,6 +3,12 @@
 This crate allows you to use closures for interrupt handlers in a
 heapless, no-std environment.
 
+## Cargo features
+The `HandlerTable` type uses a backing array for its closures. To
+configure the number of available slots, specify one of the following
+cargo features: `isr-8`, `isr-16`, `isr-32`, `isr-64`, `isr-128`, or
+`isr-256`. By default, 32 slots are available.
+
 # Example Code
 
 See the `examples` directory for some simple examples.
