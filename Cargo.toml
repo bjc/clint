@@ -12,10 +12,8 @@ readme = "README.md"
 
 [dev-dependencies]
 cortex-m = "~0.6"
+cortex-m-rt = "~0.6"
 compiletest_rs = "~0.3"
-
-[dev-dependencies.cortex-m-rt]
-version = "~0.6"
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 cortex-m = "~0.6"
