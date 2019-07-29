@@ -9,6 +9,10 @@ configure the number of available slots, specify one of the following
 cargo features: `isr-8`, `isr-16`, `isr-32`, `isr-64`, `isr-128`, or
 `isr-256`. By default, 32 slots are available.
 
+If you're using a nightly toolchain, you can enable an optimization
+when calling handlers by turning on the `const-fn` feature. This will
+save one conditional branch on every call.
+
 # Example Code
 
 See the `examples` directory for some simple examples.

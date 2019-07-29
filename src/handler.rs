@@ -80,20 +80,35 @@
 //!     unsafe { SYSTICK_HANDLER.call() };
 //! }
 //! ```
+#[cfg(not(feature = "const-fn"))]
+use core::ptr::NonNull;
 
+#[cfg(feature = "const-fn")]
 pub struct Handler<'a> {
     // Handler that will be executed on `call`.
     h: *const dyn FnMut(),
     lifetime: core::marker::PhantomData<&'a dyn FnMut()>,
+}
+#[cfg(not(feature = "const-fn"))]
+pub struct Handler<'a> {
+    // Handler that will be executed on `call`.
+    h: Option<NonNull<dyn FnMut() + 'a>>,
 }
 
 impl<'a> Handler<'a> {
     /// Returns a new Handler that initially does nothing when
     /// called. Override its behavior by using `replace`.
     pub const fn new() -> Self {
-        Self {
-            h: &Self::default_handler,
-            lifetime: core::marker::PhantomData,
+        #[cfg(feature = "const-fn")]
+        {
+            Self {
+                h: &Self::default_handler,
+                lifetime: core::marker::PhantomData,
+            }
+        }
+        #[cfg(not(feature = "const-fn"))]
+        {
+            Self { h: None }
         }
     }
 
@@ -105,7 +120,16 @@ impl<'a> Handler<'a> {
     /// while it is being executed. It is your responsibility to make
     /// sure that it's not being executed when you call `replace`.
     pub unsafe fn replace(&mut self, f: &(dyn FnMut() + Send + 'a)) {
-        self.h = core::mem::transmute::<_, &'a _>(f);
+        #[cfg(feature = "const-fn")]
+        {
+            self.h = core::mem::transmute::<_, &'a _>(f);
+        }
+        #[cfg(not(feature = "const-fn"))]
+        {
+            //        let ptr: *mut dyn FnMut() = core::mem::transmute::<_, &'a _>(f);
+            //        self.h = Some(NonNull::new(ptr));
+            self.h = Some(NonNull::new_unchecked(f));
+        }
     }
 
     /// Execute this handler.
@@ -116,8 +140,15 @@ impl<'a> Handler<'a> {
     /// closure is being looked up. You need to ensure that `replace`
     /// and `call` can not occur at the same time.
     pub unsafe fn call(&self) {
-        let f: &mut dyn FnMut() = &mut *(self.h as *mut dyn FnMut());
-        f();
+        #[cfg(feature = "const-fn")]
+        {
+            let f: &mut dyn FnMut() = &mut *(self.h as *mut dyn FnMut());
+            f();
+        }
+        #[cfg(not(feature = "const-fn"))]
+        {
+            self.h.map(|mut f| (f.as_mut())());
+        }
     }
 
     /// Do nothing handler. Needed by `call` until `replace` is used
@@ -152,7 +183,7 @@ mod test {
 
         let mut handler = Handler::new();
         unsafe {
-            handler.replace(&|| X += 1);
+            handler.replace(&mut || X += 1);
             assert_eq!(X, 0);
             handler.call();
             handler.call();
@@ -166,7 +197,7 @@ mod test {
         static mut X: usize = 0;
 
         unsafe {
-            HANDLER.replace(&|| X += 1);
+            HANDLER.replace(&mut || X += 1);
             assert_eq!(X, 0);
             HANDLER.call();
             HANDLER.call();
@@ -178,7 +209,7 @@ mod test {
     fn replace_with_default() {
         let mut handler = Handler::new();
         unsafe {
-            handler.replace(&Handler::default_handler);
+            handler.replace(&mut Handler::default_handler);
             handler.call()
         }
     }

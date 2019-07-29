@@ -15,7 +15,7 @@
 //! Critical section support is supplied by the [`cs` module](cs).
 
 #![no_std]
-#![feature(const_fn)]
+#![cfg_attr(feature = "const-fn", feature(const_fn))]
 
 pub mod array;
 pub mod cs;

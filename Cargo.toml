@@ -20,6 +20,7 @@ cortex-m = "~0.6"
 
 [features]
 default = ["isr-32"]
+const-fn = []
 
 # Number of ISR closures to hold in a HandlerTable. This is pretty
 # clumsy, but doesn't require const generics.
