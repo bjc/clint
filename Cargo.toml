@@ -14,12 +14,13 @@ readme = "README.md"
 cortex-m = "~0.6"
 cortex-m-rt = "~0.6"
 compiletest_rs = "~0.3"
+lazy_static = "~1.3"
 
 [target.'cfg(all(target_arch = "arm", target_os = "none"))'.dependencies]
 cortex-m = "~0.6"
 
 [features]
-default = ["isr-32"]
+default = ["isr-32", "compiletest_rs/stable"]
 const-fn = []
 
 # Number of ISR closures to hold in a HandlerTable. This is pretty

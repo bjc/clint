@@ -18,7 +18,12 @@
 //! use clint::HandlerArray;
 //! use cortex_m_rt::exception;
 //!
-//! static HANDLERS: HandlerArray = HandlerArray::new();
+//! #[macro_use]
+//! extern crate lazy_static;
+//!
+//! lazy_static! {
+//!     static ref HANDLERS: HandlerArray<'static> = HandlerArray::new();
+//! }
 //!
 //! fn main() {
 //!     // NB: This closure has to be created outside of `with_overrides` to
@@ -75,9 +80,25 @@ pub struct HandlerArray<'a> {
 
 impl<'a> HandlerArray<'a> {
     /// Create a new `HandlerArray` filled with no-op handlers.
+    #[cfg(feature = "const-fn")]
     pub const fn new() -> Self {
         Self {
             h: UnsafeCell::new([Handler::new(); NR_ISR]),
+        }
+    }
+
+    #[cfg(not(feature = "const-fn"))]
+    pub fn new() -> Self {
+        let h = {
+            let mut ui_h: [core::mem::MaybeUninit<Handler>; NR_ISR] =
+                unsafe { core::mem::MaybeUninit::uninit().assume_init() };
+            for h in &mut ui_h[..] {
+                unsafe { core::ptr::write(h.as_mut_ptr(), Handler::new()) }
+            }
+            unsafe { core::mem::transmute(ui_h) }
+        };
+        Self {
+            h: UnsafeCell::new(h),
         }
     }
 

@@ -1,8 +1,13 @@
 extern crate clint;
 
+#[macro_use]
+extern crate lazy_static;
+
 use clint::Handler;
 
-static mut HANDLER: Handler = Handler::new();
+lazy_static! {
+    static ref HANDLER: Handler<'static> = Handler::new();
+}
 
 fn main() {
     need_move();
@@ -12,11 +17,11 @@ fn main() {
 
 fn need_move() {
     let x = vec![1, 2, 3];
-    let c = || {
+    let mut c = || {
         println!("x(h-c): {:?}", x); //~ ERROR does not live long enough
     };
     unsafe {
-        HANDLER.replace(&c);
+        HANDLER.replace(&mut c);
         HANDLER.call();
         HANDLER.call();
     }
@@ -25,11 +30,11 @@ fn need_move() {
 
 fn borrow_error() {
     let x = vec![1, 2, 3];
-    let c = move || {
+    let mut c = move || {
         println!("x(h-c): {:?}", x);
     };
     unsafe {
-        HANDLER.replace(&c);
+        HANDLER.replace(&mut c);
         HANDLER.call();
         HANDLER.call();
     }
@@ -38,11 +43,11 @@ fn borrow_error() {
 
 fn no_borrow_needed() {
     let x = vec![1, 2, 3];
-    let c = || {
+    let mut c = || {
         println!("x(h-c): hi!");
     };
     unsafe {
-        HANDLER.replace(&c);
+        HANDLER.replace(&mut c);
         HANDLER.call();
         HANDLER.call();
     }

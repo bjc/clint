@@ -56,18 +56,23 @@
 //! use clint::Handler;
 //! use cortex_m_rt::exception;
 //!
-//! static mut SYSTICK_HANDLER: Handler = Handler::new();
+//! #[macro_use]
+//! extern crate lazy_static;
+//!
+//! lazy_static! {
+//!     static ref SYSTICK_HANDLER: Handler<'static> = Handler::new();
+//! }
 //!
 //! fn main() {
 //!     // NB: `closure` is in the lexical scope of `main`, and thus
 //!     // cannot go out of scope.
-//!     let closure = || {
+//!     let mut closure = || {
 //!         // Your interrupt handling code.
 //!     };
 //!     // Replace the handler for SysTick with closure while interrupts are
 //!     // disabled.
 //!     cortex_m::interrupt::free(|_| {
-//!         unsafe { SYSTICK_HANDLER.replace(&closure) };
+//!         unsafe { SYSTICK_HANDLER.replace(&mut closure) };
 //!     });
 //!
 //!     loop {
@@ -81,34 +86,37 @@
 //! }
 //! ```
 #[cfg(not(feature = "const-fn"))]
+use core::cell::UnsafeCell;
+#[cfg(not(feature = "const-fn"))]
 use core::ptr::NonNull;
 
 #[cfg(feature = "const-fn")]
 pub struct Handler<'a> {
     // Handler that will be executed on `call`.
-    h: *const dyn FnMut(),
+    h: *mut dyn FnMut(),
     lifetime: core::marker::PhantomData<&'a dyn FnMut()>,
 }
 #[cfg(not(feature = "const-fn"))]
 pub struct Handler<'a> {
     // Handler that will be executed on `call`.
-    h: Option<NonNull<dyn FnMut() + 'a>>,
+    h: UnsafeCell<Option<NonNull<dyn FnMut() + 'a>>>,
 }
 
 impl<'a> Handler<'a> {
     /// Returns a new Handler that initially does nothing when
     /// called. Override its behavior by using `replace`.
+    #[cfg(feature = "const-fn")]
     pub const fn new() -> Self {
-        #[cfg(feature = "const-fn")]
-        {
-            Self {
-                h: &Self::default_handler,
-                lifetime: core::marker::PhantomData,
-            }
+        Self {
+            h: &Self::default_handler,
+            lifetime: core::marker::PhantomData,
         }
-        #[cfg(not(feature = "const-fn"))]
-        {
-            Self { h: None }
+    }
+
+    #[cfg(not(feature = "const-fn"))]
+    pub fn new() -> Self {
+        Self {
+            h: UnsafeCell::new(None),
         }
     }
 
@@ -119,7 +127,7 @@ impl<'a> Handler<'a> {
     /// There is no exclusion on replacing the handler's behavior
     /// while it is being executed. It is your responsibility to make
     /// sure that it's not being executed when you call `replace`.
-    pub unsafe fn replace(&mut self, f: &(dyn FnMut() + Send + 'a)) {
+    pub unsafe fn replace(&self, f: &mut (dyn FnMut() + Send + 'a)) {
         #[cfg(feature = "const-fn")]
         {
             self.h = core::mem::transmute::<_, &'a _>(f);
@@ -128,7 +136,7 @@ impl<'a> Handler<'a> {
         {
             //        let ptr: *mut dyn FnMut() = core::mem::transmute::<_, &'a _>(f);
             //        self.h = Some(NonNull::new(ptr));
-            self.h = Some(NonNull::new_unchecked(f));
+            *self.h.get() = Some(NonNull::new_unchecked(f));
         }
     }
 
@@ -147,7 +155,8 @@ impl<'a> Handler<'a> {
         }
         #[cfg(not(feature = "const-fn"))]
         {
-            self.h.map(|mut f| (f.as_mut())());
+            let h: Option<NonNull<dyn FnMut()>> = *self.h.get();
+            h.map(|mut f| (f.as_mut())());
         }
     }
 
@@ -159,29 +168,24 @@ impl<'a> Handler<'a> {
 
 impl<'a> core::fmt::Debug for Handler<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        let (f0, f1) = unsafe { core::mem::transmute::<_, (usize, usize)>(self.h) };
+        let (f0, f1) = unsafe { core::mem::transmute::<_, (usize, usize)>(*self.h.get()) };
         write!(f, "Handler{{ h: (0x{:x}, 0x{:x}) }}", f0, f1)
     }
 }
 
-// FIXME: This probably shouldn't be Copy/Clone, but it needs to be in
-// order for array initialization to work with [Handler::new(); 32].
-impl<'a> core::marker::Copy for Handler<'a> {}
-impl<'a> core::clone::Clone for Handler<'a> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
+unsafe impl Sync for Handler<'_> {}
 
 #[cfg(test)]
 mod test {
     use super::*;
 
+    use lazy_static::*;
+
     #[test]
     fn replace() {
         static mut X: usize = 0;
 
-        let mut handler = Handler::new();
+        let handler = Handler::new();
         unsafe {
             handler.replace(&mut || X += 1);
             assert_eq!(X, 0);
@@ -193,7 +197,9 @@ mod test {
 
     #[test]
     fn replace_static() {
-        static mut HANDLER: Handler = Handler::new();
+        lazy_static! {
+            static ref HANDLER: Handler<'static> = Handler::new();
+        }
         static mut X: usize = 0;
 
         unsafe {
@@ -207,7 +213,7 @@ mod test {
 
     #[test]
     fn replace_with_default() {
-        let mut handler = Handler::new();
+        let handler = Handler::new();
         unsafe {
             handler.replace(&mut Handler::default_handler);
             handler.call()

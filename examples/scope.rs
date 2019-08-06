@@ -1,6 +1,11 @@
 use clint::HandlerArray;
 
-static HANDLERS: HandlerArray = HandlerArray::new();
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static! {
+    static ref HANDLERS: HandlerArray<'static> = HandlerArray::new();
+}
 
 fn main() {
     let mut cl = || println!("whoa!");

@@ -1,24 +1,29 @@
 use clint::Handler;
 
+#[macro_use]
+extern crate lazy_static;
+
 // Wrapper used to call through to `example_handler` via `closure` in
 // `main`. `Handler::new()` places a do-nothing handler in this at
 // compile-time, in case the interrupt using this handler is fired
 // before being `replace`d in `main`.
-static mut HANDLER: Handler = Handler::new();
+lazy_static! {
+    static ref HANDLER: Handler<'static> = Handler::new();
+}
 
 fn main() {
     let mut x: u32 = 0;
 
     // Create a closure to take a mutable reference to `x` for use in
     // `example_handler`.
-    let closure = move || example_handler(&mut x);
+    let mut closure = move || example_handler(&mut x);
 
     // Swap out the do-nothing handler with our closure that calls
     // through to `example_handler`. Ideally, the interrupt which uses
     // this handler would be disabled while this happens, but as this
     // is a demo, and there aren't any actual interrupts firing, this
     // is left as an exercise to the reader.
-    unsafe { HANDLER.replace(&closure) };
+    unsafe { HANDLER.replace(&mut closure) };
 
     // Simulate firing the interrupt.
     dummy_interrupt();
