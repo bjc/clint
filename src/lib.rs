@@ -16,9 +16,13 @@
 
 #![no_std]
 #![cfg_attr(feature = "const-fn", feature(const_fn))]
+#![cfg_attr(feature = "const-fn", feature(fn_traits))]
+#![cfg_attr(feature = "const-fn", feature(unboxed_closures))]
 
 pub mod array;
 pub mod cs;
+#[cfg(feature = "const-fn")]
+mod fnnop;
 pub mod handler;
 
 pub use array::HandlerArray;

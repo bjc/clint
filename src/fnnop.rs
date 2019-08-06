@@ -2,6 +2,7 @@
 //
 //#![feature(unboxed_closures)]
 //#![feature(fn_traits)]
+use core::cell::UnsafeCell;
 
 pub struct FnNOP();
 
@@ -16,4 +17,4 @@ impl FnOnce<()> for FnNOP {
     extern "rust-call" fn call_once(self, _args: ()) {}
 }
 
-static mut NOP: FnNOP = FnNOP();
+pub static mut NOP: UnsafeCell<FnNOP> = UnsafeCell::new(FnNOP());

@@ -85,7 +85,9 @@
 //!     unsafe { SYSTICK_HANDLER.call() };
 //! }
 //! ```
-#[cfg(not(feature = "const-fn"))]
+#[cfg(feature = "const-fn")]
+use crate::fnnop::NOP;
+
 use core::cell::UnsafeCell;
 #[cfg(not(feature = "const-fn"))]
 use core::ptr::NonNull;
@@ -93,7 +95,7 @@ use core::ptr::NonNull;
 #[cfg(feature = "const-fn")]
 pub struct Handler<'a> {
     // Handler that will be executed on `call`.
-    h: *mut dyn FnMut(),
+    h: UnsafeCell<*mut dyn FnMut()>,
     lifetime: core::marker::PhantomData<&'a dyn FnMut()>,
 }
 #[cfg(not(feature = "const-fn"))]
@@ -108,7 +110,7 @@ impl<'a> Handler<'a> {
     #[cfg(feature = "const-fn")]
     pub const fn new() -> Self {
         Self {
-            h: &Self::default_handler,
+            h: UnsafeCell::new(unsafe { NOP.get() }),
             lifetime: core::marker::PhantomData,
         }
     }
@@ -130,7 +132,7 @@ impl<'a> Handler<'a> {
     pub unsafe fn replace(&self, f: &mut (dyn FnMut() + Send + 'a)) {
         #[cfg(feature = "const-fn")]
         {
-            self.h = core::mem::transmute::<_, &'a _>(f);
+            *self.h.get() = core::mem::transmute::<_, &'a mut _>(f);
         }
         #[cfg(not(feature = "const-fn"))]
         {
@@ -150,7 +152,7 @@ impl<'a> Handler<'a> {
     pub unsafe fn call(&self) {
         #[cfg(feature = "const-fn")]
         {
-            let f: &mut dyn FnMut() = &mut *(self.h as *mut dyn FnMut());
+            let f: &mut dyn FnMut() = &mut **self.h.get();
             f();
         }
         #[cfg(not(feature = "const-fn"))]
@@ -167,6 +169,13 @@ impl<'a> Handler<'a> {
 }
 
 impl<'a> core::fmt::Debug for Handler<'a> {
+    #[cfg(feature = "const-fn")]
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        let (f0, f1) = unsafe { core::mem::transmute::<_, (usize, usize)>(*self.h.get()) };
+        write!(f, "Handler{{ h: (0x{:x}, 0x{:x}) }}", f0, f1)
+    }
+
+    #[cfg(not(feature = "const-fn"))]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         let (f0, f1) = unsafe { core::mem::transmute::<_, (usize, usize)>(*self.h.get()) };
         write!(f, "Handler{{ h: (0x{:x}, 0x{:x}) }}", f0, f1)
@@ -174,6 +183,14 @@ impl<'a> core::fmt::Debug for Handler<'a> {
 }
 
 unsafe impl Sync for Handler<'_> {}
+#[cfg(feature = "const-fn")]
+impl Copy for Handler<'_> {}
+#[cfg(feature = "const-fn")]
+impl Clone for Handler<'_> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
 
 #[cfg(test)]
 mod test {
