@@ -1,6 +1,6 @@
 [package]
 name = "clint"
-version = "0.2.0"
+version = "0.2.1"
 description = "CLosure INTerrupt handlers."
 categories = ["no-std", "embedded", "hardware-support", "asynchronous"]
 keywords = ["interrupt", "peripheral"]
