@@ -1,5 +1,8 @@
 # CLosure INTerrupt handlers
 
+[![Documentation](https://docs.rs/clint/badge.svg)](https://docs.rs/clint)
+[![Testing](https://api.travis-ci.org/repos/bjc/clint.svg?branch=master)](https://travis-ci.org/bjc/clint)
+
 This crate allows you to use closures for interrupt handlers in a
 heapless, no-std environment.
 
